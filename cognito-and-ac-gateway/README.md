@@ -36,6 +36,7 @@ Cognito User Pool、アプリクライアント、テストユーザーを作成
 
 ```bash
 # Cognito リソースを作成
+cd cognito-and-ac-gateway
 uv run python setup_cognito.py
 ```
 
