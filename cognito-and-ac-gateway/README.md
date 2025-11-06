@@ -32,11 +32,11 @@ cp .env.example .env
 
 Cognito User Pool、アプリクライアント、テストユーザーを作成します。
 
-**⚠️ 注意:** `setup-cognito.py` 内のユーザーID とパスワードを適宜変更してください。
+**⚠️ 注意:** `setup_cognito.py` 内のユーザーID とパスワードを適宜変更してください。
 
 ```bash
 # Cognito リソースを作成
-uv run python setup-cognito.py
+uv run python setup_cognito.py
 ```
 
 **このスクリプトで作成されるもの:**
@@ -94,8 +94,8 @@ uv run python client.py
 ブラウザが開き、Cognito のログイン画面が表示されます。
 
 **ログイン情報:**
-- **ユーザーID（Email）**: `setup-cognito.py` で設定したテストユーザーの Email
-- **パスワード**: `setup-cognito.py` で設定したテストユーザーのパスワード
+- **ユーザーID（Email）**: `setup_cognito.py` で設定したテストユーザーの Email
+- **パスワード**: `setup_cognito.py` で設定したテストユーザーのパスワード
 
 認証後、以下のコマンドが使用可能：
 
