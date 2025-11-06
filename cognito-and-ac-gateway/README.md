@@ -61,7 +61,7 @@ uv run python setup-cognito.py
 
 ```bash
 # Lambda 関数と Gateway を作成（冪等性あり）
-uv run python cognito-and-ac-gateway/create_gateway.py
+uv run python create_gateway.py
 ```
 
 このスクリプトは以下を実行します：
@@ -79,7 +79,7 @@ Gateway URL を Cognito User Pool のリソースサーバーとして登録し�
 
 ```bash
 # リソースサーバーを追加（冪等性あり）
-uv run python cognito-and-ac-gateway/add_resource_server.py
+uv run python add_resource_server.py
 ```
 
 このステップにより、Cognito が Gateway URL を認可対象のリソースとして認識できるようになります。
@@ -88,7 +88,7 @@ uv run python cognito-and-ac-gateway/add_resource_server.py
 
 ```bash
 # MCP クライアントを起動
-uv run python cognito-and-ac-gateway/client.py
+uv run python client.py
 ```
 
 ブラウザが開き、Cognito のログイン画面が表示されます。
@@ -101,7 +101,7 @@ uv run python cognito-and-ac-gateway/client.py
 
 ```
 mcp> list                                    # 利用可能なツール一覧
-mcp> call get_current_time_tool {}          # 現在時刻を取得
+mcp> call sample-agentcore-gateway-lambda-target___get_current_time_tool  # 現在時刻を取得
 mcp> quit                                    # 終了
 ```
 
