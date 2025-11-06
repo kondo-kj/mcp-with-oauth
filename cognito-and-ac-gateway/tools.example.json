@@ -1,0 +1,64 @@
+[
+  {
+    "name": "get_order_tool",
+    "description": "Retrieves order information by order ID",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "description": "The unique identifier for the order"
+        }
+      },
+      "required": ["orderId"]
+    }
+  },
+  {
+    "name": "update_order_tool",
+    "description": "Updates an existing order",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "description": "The unique identifier for the order"
+        },
+        "status": {
+          "type": "string",
+          "description": "The new status for the order",
+          "enum": ["pending", "processing", "shipped", "delivered", "cancelled"]
+        }
+      },
+      "required": ["orderId"]
+    }
+  },
+  {
+    "name": "create_order_tool",
+    "description": "Creates a new order",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customerId": {
+          "type": "string",
+          "description": "The customer ID"
+        },
+        "items": {
+          "type": "array",
+          "description": "List of items in the order",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "required": ["customerId", "items"]
+    }
+  }
+]
