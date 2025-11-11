@@ -1,4 +1,4 @@
-# MCP with OAuth 2.0 Authentication
+# MCP with OAuth Authentication
 
 リモート MCP サーバーに OAuth 認証を実装するためのサンプル実装とデモ環境を提供するリポジトリです。
 
