@@ -4,10 +4,9 @@ AWS Cognito を使った OAuth 認証付き MCP サーバーのサンプル実�
 
 ## 📁 ファイル構成
 
-- **`mcp-server-with-auth.py`** - Cognito 認証対応の MCP サーバー（ローカルで実行）
-- **`setup_cognito.py`** - Cognito User Pool、アプリクライアント、テストユーザーを作成
-- **`add_resource_server.py`** - MCP サーバーを Cognito のリソースサーバーとして登録（必須）
-- **`client.py`** - MCP サーバーに接続する MCP クライアント（OAuth 認証付き）
+- **`mcp-server-with-auth.py`** - MCP サーバー（ローカルで実行）
+- **`setup_cognito.py`**, **`add_resource_server.py`** - Cognitoのセットアップスクリプト
+- **`client.py`** - MCP サーバーに接続する MCP クライアント（ローカルで実行）
 
 ## 🚀 実行手順
 

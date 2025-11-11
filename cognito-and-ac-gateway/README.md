@@ -4,9 +4,9 @@ AWS Bedrock AgentCore Gateway と Amazon Cognito を使った OAuth 認証付き
 
 ## 📁 ファイル構成
 
-- **`create_gateway.py`** - Lambda 関数と AgentCore Gateway を作成するメインスクリプト
-- **`add_resource_server.py`** - Gateway を Cognito のリソースサーバーとして登録（必須）
-- **`client.py`** - Gateway に接続する MCP クライアント（OAuth 認証付き）
+- **`create_gateway`** - MCP サーバーをAgentCore Gateway上にデプロイするためのスクリプト
+- **`setup_cognito.py`**, **`add_resource_server.py`** - Cognitoのセットアップスクリプト
+- **`client.py`** - MCP サーバーに接続する MCP クライアント（ローカルで実行）
 
 ## 🚀 実行手順
 
