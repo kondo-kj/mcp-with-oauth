@@ -27,12 +27,12 @@ from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 import botocore
 
-# Load environment variables from parent directory
+# Load environment variables from current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_env_path = os.path.join(current_dir, '..', '.env')
-load_dotenv(parent_env_path)
+env_path = os.path.join(current_dir, '.env')
+load_dotenv(env_path)
 
-print(f"Loading .env from: {os.path.abspath(parent_env_path)}")
+print(f"Loading .env from: {os.path.abspath(env_path)}")
 
 # Configuration (hardcoded)
 GATEWAY_NAME = "sample-agentcore-gateway"

@@ -23,6 +23,7 @@ uv sync
 
 ```bash
 # .env.example をコピー
+cd cognito-and-ac-gateway
 cp .env.example .env
 
 # .env を編集（必要に応じて AWS リージョンなどを変更）
@@ -36,7 +37,7 @@ Cognito User Pool、アプリクライアント、テストユーザーを作成
 
 ```bash
 # Cognito リソースを作成
-cd cognito-and-ac-gateway
+
 uv run python setup_cognito.py
 ```
 
@@ -61,7 +62,7 @@ uv run python setup_cognito.py
 ### 4. Gateway の作成
 
 ```bash
-# Lambda 関数と Gateway を作成（冪等性あり）
+# Lambda 関数と Gateway を作成
 uv run python create_gateway.py
 ```
 

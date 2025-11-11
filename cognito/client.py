@@ -6,7 +6,7 @@ This client connects to MCP servers using OAuth authentication.
 Supports AWS Cognito and generic OAuth 2.0 Authorization Servers.
 
 Required environment variables in .env:
-- MCP_SERVER_URL: AgentCore Gateway URL
+- MCP_SERVER_URL: MCP Server URL (default: http://localhost:8001/mcp)
 - MCP_USE_DCR: Whether to use Dynamic Client Registration (true/false, default: false)
 - COGNITO_APP_CLIENT_ID: Cognito App Client ID (required when DCR is false)
 - COGNITO_APP_CLIENT_SECRET: Cognito App Client Secret (required when DCR is false)
@@ -460,21 +460,14 @@ async def main():
     print("=" * 70)
 
     # Load configuration from environment variables
-    server_url = os.getenv("MCP_SERVER_URL")
+    server_url = os.getenv("MCP_SERVER_URL", "http://localhost:8001/mcp")
     use_dcr = os.getenv("MCP_USE_DCR", "false").lower() == "true"
     client_id = os.getenv("COGNITO_APP_CLIENT_ID")
     client_secret = os.getenv("COGNITO_APP_CLIENT_SECRET")
 
     # Validate configuration
     print("\n[Configuration]")
-    if server_url:
-        print(f"  Server URL:      {server_url}")
-    else:
-        # Traditional port-based approach (for backward compatibility)
-        server_port = os.getenv("MCP_SERVER_PORT", 8000)
-        server_url = f"http://localhost:{server_port}/mcp"
-        print(f"  Server URL:      {server_url} (default)")
-
+    print(f"  Server URL:      {server_url}")
     print(f"  Transport:       StreamableHTTP")
     print(f"  Using DCR:       {use_dcr}")
 
@@ -499,7 +492,7 @@ async def main():
     except ValueError as e:
         print(f"\n❌ Configuration error: {e}")
         print("\n📝 Please check your .env file contains:")
-        print("  - MCP_SERVER_URL=<gateway_url>")
+        print("  - MCP_SERVER_URL=<server_url>")
         print("  - MCP_USE_DCR=false")
         print("  - COGNITO_APP_CLIENT_ID=<client_id>")
         print("  - COGNITO_APP_CLIENT_SECRET=<client_secret>")

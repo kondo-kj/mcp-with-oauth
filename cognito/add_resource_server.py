@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """
-Add Resource Server to Cognito User Pool
+Add MCP Resource Server to Cognito User Pool
 
-This script adds an AgentCore Gateway as a resource server to an existing Cognito User Pool.
+This script adds a local MCP server as a resource server to an existing Cognito User Pool.
 Configuration is loaded from the .env file.
 
 Required environment variables in .env:
 - COGNITO_USER_POOL_ID: Cognito User Pool ID
-- MCP_SERVER_URL: AgentCore Gateway URL (used as resource server identifier)
+- MCP_SERVER_URL: MCP Server URL (used as resource server identifier)
 - AWS_DEFAULT_REGION: AWS region (default: us-west-2)
+
+The MCP server URL should match the URL where mcp-server-with-auth.py is running
+(typically http://localhost:8001/mcp).
 """
 
 import os
@@ -27,8 +30,8 @@ print(f"Loading .env from: {os.path.abspath(env_path)}")
 # Load configuration from environment variables
 REGION = os.getenv('AWS_DEFAULT_REGION', 'us-west-2')
 USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID')
-AGENTCORE_GATEWAY_URL = os.getenv('MCP_SERVER_URL')
-RESOURCE_SERVER_NAME = "AgentCore Gateway"
+MCP_SERVER_URL = os.getenv('MCP_SERVER_URL', 'http://localhost:8001/mcp')
+RESOURCE_SERVER_NAME = "MCP Server"
 
 
 def validate_config():
@@ -38,7 +41,7 @@ def validate_config():
     if not USER_POOL_ID:
         errors.append("COGNITO_USER_POOL_ID is not set in .env file")
 
-    if not AGENTCORE_GATEWAY_URL:
+    if not MCP_SERVER_URL:
         errors.append("MCP_SERVER_URL is not set in .env file")
 
     if errors:
@@ -47,7 +50,7 @@ def validate_config():
             print(f"  - {error}")
         print("\n📝 Please ensure your .env file contains:")
         print("  - COGNITO_USER_POOL_ID=<user_pool_id>")
-        print("  - MCP_SERVER_URL=<gateway_url>")
+        print("  - MCP_SERVER_URL=<mcp_server_url>")
         print("  - AWS_DEFAULT_REGION=<region> (optional, defaults to us-west-2)")
         return False
 
@@ -61,7 +64,7 @@ def get_or_create_resource_server(cognito, user_pool_id, identifier, name):
     Args:
         cognito: Boto3 Cognito client
         user_pool_id: Cognito User Pool ID
-        identifier: Resource server identifier (usually the Gateway URL)
+        identifier: Resource server identifier (usually the MCP Server URL)
         name: Resource server name
 
     Returns:
@@ -112,7 +115,7 @@ def get_or_create_resource_server(cognito, user_pool_id, identifier, name):
 def main() -> None:
     """Main entry point"""
     print("=" * 70)
-    print("Add Resource Server to Cognito User Pool")
+    print("Add MCP Resource Server to Cognito User Pool")
     print("=" * 70)
 
     # Validate configuration
@@ -121,9 +124,9 @@ def main() -> None:
         return
 
     print(f"\nConfiguration:")
-    print(f"  Region:       {REGION}")
-    print(f"  User Pool ID: {USER_POOL_ID}")
-    print(f"  Gateway URL:  {AGENTCORE_GATEWAY_URL}")
+    print(f"  Region:          {REGION}")
+    print(f"  User Pool ID:    {USER_POOL_ID}")
+    print(f"  MCP Server URL:  {MCP_SERVER_URL}")
 
     # Create or get resource server
     print("\n[Step 2/2] Creating or getting resource server...")
@@ -133,11 +136,13 @@ def main() -> None:
         get_or_create_resource_server(
             cognito,
             USER_POOL_ID,
-            AGENTCORE_GATEWAY_URL,
+            MCP_SERVER_URL,
             RESOURCE_SERVER_NAME
         )
 
         print("\n✅ Operation completed successfully!")
+        print("\n📝 Next step:")
+        print("  Run the client: uv run python client.py")
 
     except Exception as e:
         print(f"\n❌ Operation failed: {e}")
