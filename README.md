@@ -1,6 +1,6 @@
 # MCP with OAuth 2.0 Authentication
 
-リモート MCP サーバーに OAuth 2.0 認証を実装するためのサンプル実装とデモ環境を提供するリポジトリです。
+リモート MCP サーバーに OAuth 認証を実装するためのサンプル実装とデモ環境を提供するリポジトリです。
 
 MCP Specの2025-06-18に準拠しています
 https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization
@@ -10,7 +10,7 @@ https://github.com/modelcontextprotocol/python-sdk/tree/main/examples
 
 ## このリポジトリの目的
 
-このリポジトリは、**リモート MCP (Model Context Protocol) サーバーに OAuth 2.0 認証機能を追加する方法**を学び、実際に体験するためのサンプル実装集です。
+このリポジトリは、**リモート MCP (Model Context Protocol) サーバーに OAuth認証機能を追加する方法**を学び、実際に体験するためのサンプル実装集です。
 
 すべてのコンポーネントがローカルで実装されたものから、各コンポーネントをマネージドに実装したものまでを見ることによって、理解を深めることを目的としています。
 
