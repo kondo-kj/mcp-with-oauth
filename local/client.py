@@ -18,9 +18,17 @@ from urllib.parse import parse_qs, urlparse
 
 from mcp.client.auth import OAuthClientProvider, TokenStorage
 from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+
+from dotenv import load_dotenv
+
+# Load environment variables from current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(current_dir, '.env')
+load_dotenv(env_path)
+
+print(f"Loading .env from: {os.path.abspath(env_path)}")
 
 
 class InMemoryTokenStorage(TokenStorage):
@@ -60,32 +68,38 @@ class CallbackHandler(BaseHTTPRequestHandler):
             self.callback_data["authorization_code"] = query_params["code"][0]
             self.callback_data["state"] = query_params.get("state", [None])[0]
             self.send_response(200)
-            self.send_header("Content-type", "text/html")
+            self.send_header("Content-type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(b"""
+            self.wfile.write("""
             <html>
+            <head>
+                <meta charset="utf-8">
+            </head>
             <body>
                 <h1>Authorization Successful!</h1>
                 <p>You can close this window and return to the terminal.</p>
                 <script>setTimeout(() => window.close(), 2000);</script>
             </body>
             </html>
-            """)
+            """.encode('utf-8'))
         elif "error" in query_params:
             self.callback_data["error"] = query_params["error"][0]
             self.send_response(400)
-            self.send_header("Content-type", "text/html")
+            self.send_header("Content-type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(
                 f"""
             <html>
+            <head>
+                <meta charset="utf-8">
+            </head>
             <body>
                 <h1>Authorization Failed</h1>
                 <p>Error: {query_params["error"][0]}</p>
                 <p>You can close this window and return to the terminal.</p>
             </body>
             </html>
-            """.encode()
+            """.encode('utf-8')
             )
         else:
             self.send_response(404)
@@ -150,9 +164,8 @@ class CallbackServer:
 class SimpleAuthClient:
     """Simple MCP client with auth support."""
 
-    def __init__(self, server_url: str, transport_type: str = "streamable-http", use_dcr: bool = True):
+    def __init__(self, server_url: str, use_dcr: bool = True):
         self.server_url = server_url
-        self.transport_type = transport_type
         self.use_dcr = use_dcr  # Flag to control whether to use DCR
 
     async def connect(self):
@@ -190,7 +203,7 @@ class SimpleAuthClient:
                 }
                 
                 oauth_auth = OAuthClientProvider(
-                    server_url=self.server_url.replace("/mcp", ""),
+                    server_url=self.server_url,
                     client_metadata=OAuthClientMetadata.model_validate(client_metadata_dict),
                     storage=InMemoryTokenStorage(),
                     redirect_handler=_default_redirect_handler,
@@ -221,32 +234,23 @@ class SimpleAuthClient:
                 # Pre-configure client information in InMemoryTokenStorage
                 storage = InMemoryTokenStorage()
                 await storage.set_client_info(pre_registered_client)
-                
+
                 oauth_auth = OAuthClientProvider(
-                    server_url=self.server_url.replace("/mcp", ""),
+                    server_url=self.server_url,
                     client_metadata=OAuthClientMetadata.model_validate(client_metadata_dict),
                     storage=storage,
                     redirect_handler=_default_redirect_handler,
                     callback_handler=callback_handler,
                 )
 
-            # Create transport with auth handler based on transport type
-            if self.transport_type == "sse":
-                print("📡 Opening SSE transport connection with auth...")
-                async with sse_client(
-                    url=self.server_url,
-                    auth=oauth_auth,
-                    timeout=60,
-                ) as (read_stream, write_stream):
-                    await self._run_session(read_stream, write_stream, None)
-            else:
-                print("📡 Opening StreamableHTTP transport connection with auth...")
-                async with streamablehttp_client(
-                    url=self.server_url,
-                    auth=oauth_auth,
-                    timeout=timedelta(seconds=60),
-                ) as (read_stream, write_stream, get_session_id):
-                    await self._run_session(read_stream, write_stream, get_session_id)
+            # Connect with StreamableHTTP transport
+            print("📡 Opening StreamableHTTP transport connection with auth...")
+            async with streamablehttp_client(
+                url=self.server_url,
+                auth=oauth_auth,
+                timeout=timedelta(seconds=60),
+            ) as (read_stream, write_stream, get_session_id):
+                await self._run_session(read_stream, write_stream, get_session_id)
 
         except Exception as e:
             print(f"❌ Failed to connect: {e}")
@@ -369,23 +373,18 @@ async def main():
     """Main entry point."""
     # Default server URL - can be overridden with environment variable
     # Most MCP streamable HTTP servers use /mcp as the endpoint
-    server_url = os.getenv("MCP_SERVER_PORT", 8000)
-    transport_type = os.getenv("MCP_TRANSPORT_TYPE", "streamable-http")
+    server_port = os.getenv("MCP_SERVER_PORT", 8000)
     use_dcr = os.getenv("MCP_USE_DCR", "false").lower() == "true"  # Control via environment variable
-    
-    server_url = (
-        f"http://localhost:{server_url}/mcp"
-        if transport_type == "streamable-http"
-        else f"http://localhost:{server_url}/sse"
-    )
+
+    server_url = f"http://localhost:{server_port}/mcp"
 
     print("🚀 Simple MCP Auth Client")
     print(f"Connecting to: {server_url}")
-    print(f"Transport type: {transport_type}")
+    print(f"Transport type: StreamableHTTP")
     print(f"Using DCR: {use_dcr}")
 
     # Start connection flow - OAuth will be handled automatically
-    client = SimpleAuthClient(server_url, transport_type, use_dcr)
+    client = SimpleAuthClient(server_url, use_dcr)
     await client.connect()
 
 

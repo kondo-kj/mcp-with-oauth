@@ -10,9 +10,10 @@ This is not a production-ready implementation.
 
 import datetime
 import logging
+import os
 from typing import Any, Literal
 
-import click
+from dotenv import load_dotenv
 from pydantic import AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,6 +21,13 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp.server import FastMCP
 
 from token_verifier import IntrospectionTokenVerifier
+
+# Load environment variables from current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(current_dir, '.env')
+load_dotenv(env_path)
+
+print(f"Loading .env from: {os.path.abspath(env_path)}")
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +40,12 @@ class ResourceServerSettings(BaseSettings):
     # Server settings
     host: str = "localhost"
     port: int = 8001
-    server_url: AnyHttpUrl = AnyHttpUrl("http://localhost:8001/mcp")
+    server_url: AnyHttpUrl | None = None
+    transport: Literal["sse", "streamable-http"] = "streamable-http"
 
     # Authorization Server settings
     auth_server_url: AnyHttpUrl = AnyHttpUrl("http://localhost:9000")
-    auth_server_introspection_endpoint: str = "http://localhost:9000/introspect"
+    auth_server_introspection_endpoint: str | None = None
     # No user endpoint needed - we get user data from token introspection
 
     # MCP settings
@@ -44,6 +53,16 @@ class ResourceServerSettings(BaseSettings):
 
     # RFC 8707 resource validation
     oauth_strict: bool = False
+
+    def model_post_init(self, __context):
+        """Post-initialization to set computed fields."""
+        # Set server_url if not provided
+        if self.server_url is None:
+            self.server_url = AnyHttpUrl(f"http://{self.host}:{self.port}/mcp")
+
+        # Set introspection endpoint if not provided
+        if self.auth_server_introspection_endpoint is None:
+            self.auth_server_introspection_endpoint = f"{self.auth_server_url}/introspect"
 
 
 def create_resource_server(settings: ResourceServerSettings) -> FastMCP:
@@ -99,21 +118,7 @@ def create_resource_server(settings: ResourceServerSettings) -> FastMCP:
     return app
 
 
-@click.command()
-@click.option("--port", default=8001, help="Port to listen on")
-@click.option("--auth-server", default="http://localhost:9000", help="Authorization Server URL")
-@click.option(
-    "--transport",
-    default="streamable-http",
-    type=click.Choice(["sse", "streamable-http"]),
-    help="Transport protocol to use ('sse' or 'streamable-http')",
-)
-@click.option(
-    "--oauth-strict",
-    is_flag=True,
-    help="Enable RFC 8707 resource validation",
-)
-def main(port: int, auth_server: str, transport: Literal["sse", "streamable-http"], oauth_strict: bool) -> int:
+def main() -> int:
     """
     Run the MCP Resource Server.
 
@@ -123,37 +128,42 @@ def main(port: int, auth_server: str, transport: Literal["sse", "streamable-http
     - Serves MCP tools requiring authentication
 
     Must be used with a running Authorization Server.
+
+    Configuration is loaded from environment variables with prefix MCP_RESOURCE_:
+    - MCP_RESOURCE_PORT: Server port (default: 8001)
+    - MCP_RESOURCE_AUTH_SERVER_URL: Authorization Server URL (default: http://localhost:9000)
+    - MCP_RESOURCE_TRANSPORT: Transport protocol (default: streamable-http)
+    - MCP_RESOURCE_OAUTH_STRICT: Enable RFC 8707 validation (default: false)
     """
     logging.basicConfig(level=logging.INFO)
 
     try:
-        # Parse auth server URL
-        auth_server_url = AnyHttpUrl(auth_server)
+        # Load settings from environment variables
+        settings = ResourceServerSettings()
 
-        # Create settings
-        host = "localhost"
-        server_url = f"http://{host}:{port}/mcp"
-        settings = ResourceServerSettings(
-            host=host,
-            port=port,
-            server_url=AnyHttpUrl(server_url),
-            auth_server_url=auth_server_url,
-            auth_server_introspection_endpoint=f"{auth_server}/introspect",
-            oauth_strict=oauth_strict,
-        )
+        logger.info("=" * 70)
+        logger.info("MCP Resource Server with OAuth Authentication")
+        logger.info("=" * 70)
+        logger.info(f"\n[Configuration]")
+        logger.info(f"  Server URL:         {settings.server_url}")
+        logger.info(f"  Transport:          {settings.transport}")
+        logger.info(f"  Auth Server:        {settings.auth_server_url}")
+        logger.info(f"  OAuth Strict:       {settings.oauth_strict}")
+        logger.info(f"  Required Scope:     {settings.mcp_scope}")
+
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
-        logger.error("Make sure to provide a valid Authorization Server URL")
+        logger.error("Please check your .env file configuration")
         return 1
 
     try:
         mcp_server = create_resource_server(settings)
 
-        logger.info(f"🚀 MCP Resource Server running on {settings.server_url}")
+        logger.info(f"\n🚀 Starting MCP Resource Server...")
         logger.info(f"🔑 Using Authorization Server: {settings.auth_server_url}")
 
         # Run the server - this should block and keep running
-        mcp_server.run(transport=transport)
+        mcp_server.run(transport=settings.transport)
         logger.info("Server stopped")
         return 0
     except Exception:
@@ -162,4 +172,4 @@ def main(port: int, auth_server: str, transport: Literal["sse", "streamable-http
 
 
 if __name__ == "__main__":
-    main()  # type: ignore[call-arg]
+    exit(main())

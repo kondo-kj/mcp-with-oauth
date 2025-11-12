@@ -43,7 +43,31 @@
 uv sync
 ```
 
-### 2. デフォルト認証情報
+### 2. 環境変数の設定
+
+```bash
+cd local
+cp .env.example .env
+```
+
+`.env`ファイルを編集して、必要に応じて設定を変更してください：
+
+```bash
+# MCP Client Configuration
+MCP_SERVER_PORT=8001          # クライアントが接続するサーバーのポート
+MCP_USE_DCR=false            # Dynamic Client Registration の使用
+
+# MCP Authorization Server Configuration
+MCP_AUTH_PORT=9000           # 認証サーバーのポート
+
+# MCP Resource Server Configuration
+MCP_RESOURCE_PORT=8001                           # サーバーが起動するポート
+MCP_RESOURCE_AUTH_SERVER_URL=http://localhost:9000  # 認証サーバーURL
+MCP_RESOURCE_TRANSPORT=streamable-http           # トランスポートプロトコル
+MCP_RESOURCE_OAUTH_STRICT=false                  # RFC 8707 検証の有効化
+```
+
+### 3. デフォルト認証情報
 
 このサンプルでは、以下のデフォルト認証情報が事前設定されています：
 
@@ -55,12 +79,14 @@ uv sync
 - Client ID: `simple-mcp-client`
 - Client Secret: `simple-mcp-secret-123`
 
-### 3. Authorization Server の起動
+### 4. Authorization Server の起動
 
 ```bash
 cd local
-uv run python auth_server.py --port=9000
+uv run python auth_server.py
 ```
+
+サーバーは`.env`ファイルの設定を読み込んで起動します。
 
 **起動すると以下のエンドポイントが利用可能になります:**
 - `/oauth2/authorize` - 認証エンドポイント
@@ -68,38 +94,40 @@ uv run python auth_server.py --port=9000
 - `/login` - ログインページ
 - `/introspect` - トークン検証エンドポイント（Resource Server 用）
 
-### 4. Resource Server (MCP Server) の起動
+**設定可能な環境変数（`.env`ファイルで設定）:**
+- `MCP_AUTH_PORT` - ポート番号（デフォルト: 9000）
+
+### 5. Resource Server (MCP Server) の起動
 
 新しいターミナルを開いて：
 
 ```bash
 cd local
-uv run python mcp-server-with-auth.py --port=8001 --auth-server=http://localhost:9000 --transport=streamable-http
+uv run python mcp-server-with-auth.py
 ```
+
+サーバーは`.env`ファイルの設定を読み込んで起動します。
 
 **起動すると以下のエンドポイントが利用可能になります:**
 - `/mcp` - MCP API
 - `/.well-known/oauth-protected-resource` - リソースメタデータ（RFC 9728）
 
-**コマンドラインオプション:**
-```bash
-Options:
-  --port INTEGER                    ポート番号（デフォルト: 8001）
-  --auth-server TEXT               認証サーバー URL（デフォルト: http://localhost:9000）
-  --transport [sse|streamable-http] トランスポートプロトコル（デフォルト: streamable-http）
-  --oauth-strict                   RFC 8707 リソース検証を有効化
-```
+**設定可能な環境変数（`.env`ファイルで設定）:**
+- `MCP_RESOURCE_PORT` - ポート番号（デフォルト: 8001）
+- `MCP_RESOURCE_AUTH_SERVER_URL` - 認証サーバー URL（デフォルト: http://localhost:9000）
+- `MCP_RESOURCE_TRANSPORT` - トランスポートプロトコル（デフォルト: streamable-http）
+- `MCP_RESOURCE_OAUTH_STRICT` - RFC 8707 リソース検証を有効化（デフォルト: false）
 
-### 5. Client での接続
+### 6. Client での接続
 
 新しいターミナルを開いて：
 
 ```bash
 cd local
-MCP_SERVER_PORT=8001 MCP_TRANSPORT_TYPE=streamable-http MCP_USE_DCR=false uv run python client.py
+uv run python client.py
 ```
 
-ブラウザが開き、ローカル認証サーバーのログイン画面が表示されます。
+クライアントは`.env`ファイルの設定を読み込んで起動します。ブラウザが開き、ローカル認証サーバーのログイン画面が表示されます。
 
 **ログイン情報:**
 - **Username**: `demo_user`
@@ -115,7 +143,7 @@ mcp> quit             # 終了
 
 ## 📝 クライアント認証モード（DCR フラグ）
 
-クライアントは 2 つの認証モードをサポートしています。環境変数 `MCP_USE_DCR` で切り替えることができます。
+クライアントは 2 つの認証モードをサポートしています。`.env` ファイルの `MCP_USE_DCR` で切り替えることができます。
 
 ### DCR 無効モード（`MCP_USE_DCR=false`）【推奨】
 
@@ -131,9 +159,10 @@ mcp> quit             # 終了
 - Client ID: `simple-mcp-client`
 - Client Secret: `simple-mcp-secret-123`
 
-**起動例:**
+**設定方法:**
+`.env` ファイルを編集：
 ```bash
-MCP_USE_DCR=false uv run python client.py
+MCP_USE_DCR=false
 ```
 
 ### DCR 有効モード（`MCP_USE_DCR=true`）
@@ -147,9 +176,10 @@ MCP_USE_DCR=false uv run python client.py
 - 本番環境でのクライアント管理に適している
 - このデモ環境では DCR 機能が有効になっており、両方のモードが動作します
 
-**起動例:**
+**設定方法:**
+`.env` ファイルを編集：
 ```bash
-MCP_USE_DCR=true uv run python client.py
+MCP_USE_DCR=true
 ```
 
 **💡 使い分け:**

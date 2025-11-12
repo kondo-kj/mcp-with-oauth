@@ -11,10 +11,12 @@ This is not a production-ready implementation.
 
 import asyncio
 import logging
+import os
 import time
 
-import click
-from pydantic import AnyHttpUrl, BaseModel
+from dotenv import load_dotenv
+from pydantic import AnyHttpUrl
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -27,17 +29,36 @@ from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 
 from simple_auth_provider import SimpleAuthSettings, SimpleOAuthProvider
 
+# Load environment variables from current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(current_dir, '.env')
+load_dotenv(env_path)
+
+print(f"Loading .env from: {os.path.abspath(env_path)}")
+
 logger = logging.getLogger(__name__)
 
 
-class AuthServerSettings(BaseModel):
+class AuthServerSettings(BaseSettings):
     """Settings for the Authorization Server."""
+
+    model_config = SettingsConfigDict(env_prefix="MCP_AUTH_")
 
     # Server settings
     host: str = "localhost"
     port: int = 9000
-    server_url: AnyHttpUrl = AnyHttpUrl("http://localhost:9000")
-    auth_callback_path: str = "http://localhost:9000/login/callback"
+    server_url: AnyHttpUrl | None = None
+    auth_callback_path: str | None = None
+
+    def model_post_init(self, __context):
+        """Post-initialization to set computed fields."""
+        # Set server_url if not provided
+        if self.server_url is None:
+            self.server_url = AnyHttpUrl(f"http://{self.host}:{self.port}")
+
+        # Set auth_callback_path if not provided
+        if self.auth_callback_path is None:
+            self.auth_callback_path = f"{self.server_url}/login/callback"
 
 
 class SimpleAuthProvider(SimpleOAuthProvider):
@@ -154,34 +175,42 @@ async def run_server(server_settings: AuthServerSettings, auth_settings: SimpleA
     await server.serve()
 
 
-@click.command()
-@click.option("--port", default=9000, help="Port to listen on")
-def main(port: int) -> int:
+def main() -> int:
     """
     Run the MCP Authorization Server.
 
     This server handles OAuth flows and can be used by multiple Resource Servers.
 
     Uses simple hardcoded credentials for demo purposes.
+
+    Configuration is loaded from environment variables with prefix MCP_AUTH_:
+    - MCP_AUTH_PORT: Server port (default: 9000)
     """
     logging.basicConfig(level=logging.INFO)
 
-    # Load simple auth settings
-    auth_settings = SimpleAuthSettings()
+    try:
+        # Load simple auth settings
+        auth_settings = SimpleAuthSettings()
 
-    # Create server settings
-    host = "localhost"
-    server_url = f"http://{host}:{port}"
-    server_settings = AuthServerSettings(
-        host=host,
-        port=port,
-        server_url=AnyHttpUrl(server_url),
-        auth_callback_path=f"{server_url}/login",
-    )
+        # Load server settings from environment variables
+        server_settings = AuthServerSettings()
+
+        logger.info("=" * 70)
+        logger.info("MCP Authorization Server")
+        logger.info("=" * 70)
+        logger.info(f"\n[Configuration]")
+        logger.info(f"  Server URL:         {server_settings.server_url}")
+        logger.info(f"  Callback Path:      {server_settings.auth_callback_path}")
+        logger.info(f"  Demo User:          {auth_settings.demo_username}")
+
+    except ValueError as e:
+        logger.error(f"Configuration error: {e}")
+        logger.error("Please check your .env file configuration")
+        return 1
 
     asyncio.run(run_server(server_settings, auth_settings))
     return 0
 
 
 if __name__ == "__main__":
-    main()  # type: ignore[call-arg]
+    exit(main())

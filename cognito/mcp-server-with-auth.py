@@ -13,7 +13,6 @@ import os
 import logging
 from typing import Any, Literal, Optional
 
-import click
 from pydantic import AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,7 +31,7 @@ logger = logging.getLogger(__name__)
 class ResourceServerSettings(BaseSettings):
     """
     MCP Resource Server の設定クラス
-    
+
     環境変数から設定を読み込み、サーバーの動作を制御します。
     """
 
@@ -41,19 +40,29 @@ class ResourceServerSettings(BaseSettings):
     # サーバー基本設定
     host: str = "localhost"
     port: int = 8001
-    server_url: AnyHttpUrl = AnyHttpUrl("http://localhost:8001/mcp")
+    server_url: AnyHttpUrl | None = None
+    transport: Literal["sse", "streamable-http"] = "streamable-http"
 
     # AWS Cognito 設定
     cognito_user_pool_id: str = os.getenv("COGNITO_USER_POOL_ID")
-    cognito_region: str = os.getenv("COGNITO_REGION", "us-west-2")
     cognito_app_client_id: str = os.getenv("COGNITO_APP_CLIENT_ID")
     cognito_domain: str = os.getenv("COGNITO_DOMAIN")
-    
+
     # MCP 認証設定
     mcp_scope: str = "openid"  # Cognito で使用するスコープ
 
     # RFC 8707 リソース検証
     expected_resource: Optional[str] = None  # RFC 8707 Resource Indicator
+
+    def model_post_init(self, __context):
+        """初期化後の処理で計算フィールドを設定"""
+        # server_url が未設定の場合は自動生成
+        if self.server_url is None:
+            self.server_url = AnyHttpUrl(f"http://{self.host}:{self.port}/mcp")
+
+        # expected_resource が未設定の場合は server_url を使用
+        if self.expected_resource is None:
+            self.expected_resource = str(self.server_url)
 
 
 def create_resource_server(settings: ResourceServerSettings) -> FastMCP:
@@ -72,16 +81,18 @@ def create_resource_server(settings: ResourceServerSettings) -> FastMCP:
     Returns:
         FastMCP: 設定済みの MCP サーバーインスタンス
     """
+    # User Pool ID から region を抽出 (例: "us-west-2_XXXXXXXXX" → "us-west-2")
+    cognito_region = settings.cognito_user_pool_id.split('_')[0]
+
     # Cognito JWT トークン検証器を作成（RFC 8707対応）
     token_verifier = CognitoTokenVerifier(
         user_pool_id=settings.cognito_user_pool_id,
-        region=settings.cognito_region,
         app_client_id=settings.cognito_app_client_id,
         expected_resource=settings.expected_resource  # RFC 8707対応
     )
-    
+
     # Cognito Issuer URL を構築
-    cognito_issuer_url = f"https://cognito-idp.{settings.cognito_region}.amazonaws.com/{settings.cognito_user_pool_id}"
+    cognito_issuer_url = f"https://cognito-idp.{cognito_region}.amazonaws.com/{settings.cognito_user_pool_id}"
 
     # FastMCP サーバーを Resource Server として作成
     app = FastMCP(
@@ -121,15 +132,7 @@ def create_resource_server(settings: ResourceServerSettings) -> FastMCP:
 
     return app
 
-@click.command()
-@click.option("--port", default=8001, help="Port to listen on")
-@click.option(
-    "--transport",
-    default="streamable-http",
-    type=click.Choice(["sse", "streamable-http"]),
-    help="Transport protocol to use",
-)
-def main(port: int, transport: Literal["sse", "streamable-http"]) -> int:
+def main() -> int:
     """
     Cognito 認証対応の MCP Resource Server を実行
 
@@ -137,9 +140,10 @@ def main(port: int, transport: Literal["sse", "streamable-http"]) -> int:
     別途 Authorization Server を起動する必要はありません。
     RFC 8707 Resource Indicators にも対応しています。
 
-    Args:
-        port: サーバーのリスニングポート
-        transport: 使用するトランスポートプロトコル
+    環境変数（プレフィックス MCP_RESOURCE_）から設定を読み込みます:
+    - MCP_RESOURCE_PORT: サーバーポート (デフォルト: 8001)
+    - MCP_RESOURCE_TRANSPORT: トランスポートプロトコル (デフォルト: streamable-http)
+    - MCP_RESOURCE_EXPECTED_RESOURCE: RFC 8707 Resource Indicator (デフォルト: server_url)
 
     Returns:
         int: 終了コード（0: 正常終了, 1: エラー終了）
@@ -149,42 +153,47 @@ def main(port: int, transport: Literal["sse", "streamable-http"]) -> int:
     # 必要な環境変数の確認
     required_env_vars = [
         "COGNITO_USER_POOL_ID",
-        "COGNITO_APP_CLIENT_ID", 
+        "COGNITO_APP_CLIENT_ID",
         "COGNITO_DOMAIN"
     ]
-    
+
     missing_vars = [var for var in required_env_vars if not os.getenv(var)]
     if missing_vars:
         logger.error(f"必要な環境変数が設定されていません: {missing_vars}")
+        logger.error("Please check your .env file")
         return 1
 
     try:
-        # サーバー設定を作成
-        host = "localhost"
-        server_url = f"http://{host}:{port}/mcp"
-        settings = ResourceServerSettings(
-            host=host,
-            port=port,
-            server_url=AnyHttpUrl(server_url),
-            expected_resource=server_url,  # RFC 8707対応
-        )
+        # 環境変数からサーバー設定を読み込み
+        settings = ResourceServerSettings()
+
+        logger.info("=" * 70)
+        logger.info("MCP Resource Server with Cognito Authentication")
+        logger.info("=" * 70)
+        logger.info(f"\n[Configuration]")
+        logger.info(f"  Server URL:         {settings.server_url}")
+        logger.info(f"  Transport:          {settings.transport}")
+        logger.info(f"  User Pool ID:       {settings.cognito_user_pool_id}")
+        logger.info(f"  App Client ID:      {settings.cognito_app_client_id}")
+        logger.info(f"  Required Scope:     {settings.mcp_scope}")
+
+        # RFC 8707設定の表示
+        if settings.expected_resource:
+            logger.info(f"  RFC 8707 Resource:  {settings.expected_resource} (enabled)")
+        else:
+            logger.info("  RFC 8707 Resource:  disabled")
+
     except ValueError as e:
         logger.error(f"設定エラー: {e}")
+        logger.error("Please check your .env file configuration")
         return 1
 
     try:
         mcp_server = create_resource_server(settings)
 
-        logger.info(f"🚀 MCP Resource Server を開始しました: {settings.server_url}")
-        logger.info(f"🔑 使用中の Cognito User Pool: {settings.cognito_user_pool_id}")
-        
-        # RFC 8707設定の表示
-        if settings.expected_resource:
-            logger.info(f"🎯 RFC 8707 Resource Binding有効: {settings.expected_resource}")
-        else:
-            logger.info("📝 RFC 8707 Resource Binding無効（expected_resource未設定）")
+        logger.info(f"\n🚀 Starting MCP Resource Server...")
 
-        mcp_server.run(transport=transport)
+        mcp_server.run(transport=settings.transport)
         logger.info("サーバーを停止しました")
         return 0
     except Exception:
@@ -193,4 +202,4 @@ def main(port: int, transport: Literal["sse", "streamable-http"]) -> int:
 
 
 if __name__ == "__main__":
-    main()  # type: ignore[call-arg]
+    exit(main())

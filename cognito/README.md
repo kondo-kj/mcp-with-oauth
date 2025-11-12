@@ -54,8 +54,7 @@ uv run python setup_cognito.py
    - Email とパスワードで即座にログイン可能な状態で作成
 
 **出力された値を `.env` に追加:**
-- `COGNITO_USER_POOL_ID`
-- `COGNITO_REGION`
+- `COGNITO_USER_POOL_ID` (リージョンは User Pool ID から自動抽出されます)
 - `COGNITO_APP_CLIENT_ID`
 - `COGNITO_APP_CLIENT_SECRET`
 - `COGNITO_DOMAIN`
@@ -67,7 +66,7 @@ uv run python setup_cognito.py
 uv run python mcp-server-with-auth.py
 ```
 
-サーバーはデフォルトで `http://localhost:8001/mcp` で起動します。
+サーバーは`.env`ファイルの設定を読み込んで起動します。デフォルトで `http://localhost:8001/mcp` で起動します。
 
 **出力された `MCP_SERVER_URL` を `.env` に追加してください。**
 デフォルトのポートで起動している場合、なにもしなくても大丈夫です。
@@ -153,14 +152,20 @@ Cognito 認証対応のメイン MCP サーバーです。
 - RFC 8707 Resource Indicators 対応
 - 認証が必要なツールの提供
 
-**コマンドラインオプション：**
+**設定方法：**
+サーバーは`.env`ファイルから環境変数を読み込んで動作します：
+
 ```bash
-uv run python mcp-server-with-auth.py --port 8001 --transport streamable-http
+# MCP Resource Server Configuration
+MCP_RESOURCE_PORT=8001                     # サーバーポート
+MCP_RESOURCE_TRANSPORT=streamable-http     # トランスポートプロトコル
+MCP_RESOURCE_EXPECTED_RESOURCE=...         # RFC 8707 Resource Indicator（省略可）
 ```
 
-オプション：
-- `--port` - サーバーポート（デフォルト: 8001）
-- `--transport` - トランスポートプロトコル: `sse` または `streamable-http`（デフォルト: streamable-http）
+環境変数（プレフィックス `MCP_RESOURCE_`）:
+- `PORT` - サーバーポート（デフォルト: 8001）
+- `TRANSPORT` - トランスポートプロトコル: `sse` または `streamable-http`（デフォルト: streamable-http）
+- `EXPECTED_RESOURCE` - RFC 8707 Resource Indicator（デフォルト: 自動生成）
 
 ### client.py
 

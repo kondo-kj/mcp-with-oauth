@@ -25,22 +25,22 @@ class CognitoTokenVerifier(TokenVerifier):
     クレームの妥当性をチェックします。
     """
     
-    def __init__(self, user_pool_id: str, region: str, app_client_id: str, expected_resource: Optional[str] = None):
+    def __init__(self, user_pool_id: str, app_client_id: str, expected_resource: Optional[str] = None):
         """
         CognitoTokenVerifier を初期化
-        
+
         Args:
-            user_pool_id: Cognito User Pool ID
-            region: AWS リージョン
+            user_pool_id: Cognito User Pool ID (例: us-west-2_XXXXXXXXX)
             app_client_id: Cognito App Client ID
             expected_resource: RFC 8707で期待されるリソースURI（設定時は強制的にRFC 8707検証を実行）
         """
         self.user_pool_id = user_pool_id
-        self.region = region
+        # User Pool ID から region を自動抽出 (例: "us-west-2_XXXXXXXXX" → "us-west-2")
+        self.region = user_pool_id.split('_')[0]
         self.app_client_id = app_client_id
         self.expected_resource = expected_resource
-        self.jwks_url = f"https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json"
-        self.issuer = f"https://cognito-idp.{region}.amazonaws.com/{user_pool_id}"
+        self.jwks_url = f"https://cognito-idp.{self.region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json"
+        self.issuer = f"https://cognito-idp.{self.region}.amazonaws.com/{user_pool_id}"
         self._jwks_cache = None
     
     def _verify_resource_binding(self, payload: Dict[str, Any]) -> bool:
